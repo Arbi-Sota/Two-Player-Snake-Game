@@ -191,7 +191,7 @@ void Input(){
             dir_2=DOWN;
             break;
       ////////////////////////////////////
-        case 'b':
+        case 'q':
             gameOver=true;
             break;
         case 'r':
@@ -344,10 +344,14 @@ int main()
               //              );
 
 
+
     srand(time(NULL));
     Setup();
 
     while(!gameOver){
+
+        clock_t startTime = clock(); // Start measuring time
+
         system("cls"); // Clear the screen before the next iteration
 
         Draw();
@@ -356,16 +360,25 @@ int main()
         Sleep(100); // slows our game because it runs too fast
 
         if (gameOver){
+
+
             sprintf(image + strlen(image), "\nGame Over!\n");
-            sprintf(image + strlen(image), "Press R to restart or B to quit.\n");
+            sprintf(image + strlen(image), "Press R to restart or Q to quit.\n");
+
+            Image();
 
             char key=_getch();
             if(key=='r') Restart();
-            else if (key=='b') break;
+            else if (key=='q') break;
+
         }
+        clock_t endTime = clock(); // Stop measuring time
+        double iterationTime = (double)(endTime - startTime) / CLOCKS_PER_SEC;
+        printf("\nTime for one iteration: %f seconds\n", iterationTime);
+
+
     }
 
-    Image();
 
     return 0;
 }
