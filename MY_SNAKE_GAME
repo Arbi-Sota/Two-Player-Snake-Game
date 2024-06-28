@@ -1,20 +1,17 @@
-// Hit the tail game over
-// Hit the wall game over  ---> old idea
-// Made the wall like a teleport
-
 #include <stdio.h>
-#include <stdlib.h> // rand() //system("cls");
+#include <stdlib.h>     // rand(), system("cls")
 #include <stdbool.h>
-#include <Windows.h>
-#include <time.h>
-#include <conio.h> // used for the movement of the snake
-#include <string.h> // used for strlen for sprintf
+#include <Windows.h>    // sleep()
+#include <time.h>       // Measuring the time for each iteration
+#include <conio.h>      // Used for the movement of the snakes(reading input keys from the users)
+#include <string.h>     // Used for strlen for sprintf
 
+#define MAX_SLEEP_TIME 120 // Maximum sleep time in milliseconds
 
 bool gameOver;
 bool gameRestart;
-const int width=60;
-const int height=20;
+const int width = 60;
+const int height = 20;
 int fruitX, fruitY;
 
 int headX, headY, nTail, score;
@@ -23,23 +20,49 @@ int tailX[100], tailY[100];
 int headX_2, headY_2, nTail_2, score_2;
 int tailX_2[100], tailY_2[100];
 
-enum eDirection{STOP=0, LEFT, RIGHT, UP, DOWN};
+enum eDirection { STOP = 0, LEFT, RIGHT, UP, DOWN };
 enum eDirection dir, dir_2;
 
 char image[2600];
+int useSprintf = 1; // 1 for sprintf, 0 for printf
 
-void Image(){
-    printf("%s", image);
-    /*This is commonly used to reset the contents of an array or memory block to a known initial state.
-    In this case, it ensures that the contents of image are cleared before each redraw.*/
-    memset(image, 0, sizeof(image));
+void resizeConsole() { // Makes the window appear bigger
+    // Retrieve the console window handle
+    HWND consoleWindow = GetConsoleWindow();
+
+    // Adjust the window style
+    LONG style = GetWindowLong(consoleWindow, GWL_STYLE);
+    style &= ~(WS_OVERLAPPEDWINDOW); // Remove window border and title bar
+    SetWindowLong(consoleWindow, GWL_STYLE, style);
+    SetWindowPos(consoleWindow, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER);
+
+    // Get full screen size
+    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    // Set the screen buffer size to be large enough
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    COORD coord = { screenWidth / 8, screenHeight / 16 }; // Adjust character size if different
+    SetConsoleScreenBufferSize(hConsole, coord);
+
+    // Adjust the console window size
+    SetWindowPos(consoleWindow, HWND_TOP, 0, 0, screenWidth, screenHeight, SWP_NOOWNERZORDER);
 }
 
-void Setup(){
-    gameOver=false;
-    gameRestart=false;
-    dir=STOP; // will move when we give the command, so initially it will not move
-    dir_2=STOP;
+
+
+void Image() {
+    if (useSprintf) {
+        printf("%s", image);
+        memset(image, 0, sizeof(image));
+    }
+}
+
+void Setup() {
+    gameOver = false;
+    gameRestart = false;
+    dir = STOP; // It will move when we give the command, so initially it will not move
+    dir_2 = STOP;
 
     headX = 1; // Top-left corner
     headY = 0;
@@ -47,338 +70,376 @@ void Setup(){
     headX_2 = width - 1; // Bottom-right corner
     headY_2 = height - 1;
 
-    fruitX= width/2;
-    fruitY= height/2; // the initial position of the fruit is in the center of the map
+    fruitX = width / 2;
+    fruitY = height / 2; // The initial position of the fruit is in the center of the map
 
-    //fruitX=rand()%width;
-    //fruitY=rand()%height;
+    score = 0;
+    score_2 = 0;
 
-    score=0;
-    score_2=0;
-
-    nTail=0;
-    nTail_2=0;
+    nTail = 0;
+    nTail_2 = 0;
 }
 
-void Instructions(){
-
-
-   sprintf(image, "\n        \x1b[34mooooooooooO\x1b[0m                                   \x1b[33m++++++++++C\x1b[0m\n\n");
-   sprintf(image + strlen(image), "              UP                                            UP                            Rules:\n");
-   sprintf(image + strlen(image), "              |                                             |                                   \n");
-   sprintf(image + strlen(image), "              W                                             I                             1. When you eat a fruit the body of the snake increases with \n");
-   sprintf(image + strlen(image), "  LEFT -- A       D -- RIGHT                    LEFT -- J       L -- RIGHT                one unit and the score with 10 points.\n");
-   sprintf(image + strlen(image), "              S                                             K                             2. If you hit your own tail you loose.  \n");
-   sprintf(image + strlen(image), "              |                                             |                                + this rule only applies when the body of the snake is at\n");
-   sprintf(image + strlen(image), "            DOWN                                          DOWN                            least 3 units long ( ooO | C++ )\n");
-   sprintf(image + strlen(image), "                                                                                          3. If you hit the head or the tail of the other snake you lose.\n\n");
-   sprintf(image + strlen(image), "           \x1b[34mScore: %d\x1b[0m                                     \x1b[33mScore: %d\n\n\x1b[0m", score, score_2);
-
-
+void Instructions() {
+    if (useSprintf) {
+        sprintf(image, "\n        \x1b[34mooooooooooO\x1b[0m                                   \x1b[33m++++++++++C\x1b[0m\n\n");
+        sprintf(image + strlen(image), "              UP                                           UP                           Rules:\n");
+        sprintf(image + strlen(image), "              |                                            |                                    \n");
+        sprintf(image + strlen(image), "              W                                            I                            1. When you eat a fruit the body of the snake increases with one\n");
+        sprintf(image + strlen(image), "  LEFT -- A       D -- RIGHT                   LEFT -- J       L -- RIGHT               unit and the score with 10 points.\n");
+        sprintf(image + strlen(image), "              S                                            K                            2. If you hit your own tail you loose.  \n");
+        sprintf(image + strlen(image), "              |                                            |                               + this rule only applies when the body of the snake is at\n");
+        sprintf(image + strlen(image), "            DOWN                                         DOWN                           least 3 units long ( ooO | C++ )\n");
+        sprintf(image + strlen(image), "                                                                                        3. If you hit the head or the tail of the other snake you also lose.\n\n");
+        sprintf(image + strlen(image), "           \x1b[34mScore: %d\x1b[0m                                    \x1b[33mScore: %d\n\n\x1b[0m", score, score_2);
+    } else {
+        printf("\n        \x1b[34mooooooooooO\x1b[0m                                   \x1b[33m++++++++++C\x1b[0m\n\n");
+        printf("              UP                                           UP                           Rules:\n");
+        printf("              |                                            |                                    \n");
+        printf("              W                                            I                            1. When you eat a fruit the body of the snake increases with one\n");
+        printf("  LEFT -- A       D -- RIGHT                   LEFT -- J       L -- RIGHT               unit and the score with 10 points.\n");
+        printf("              S                                            K                            2. If you hit your own tail you loose.  \n");
+        printf("              |                                            |                               + this rule only applies when the body of the snake is at\n");
+        printf("            DOWN                                         DOWN                           least 3 units long ( ooO | C++ )\n");
+        printf("                                                                                        3. If you hit the head or the tail of the other snake you also lose.\n\n");
+        printf("           \x1b[34mScore: %d\x1b[0m                                    \x1b[33mScore: %d\n\n\x1b[0m", score, score_2);
+    }
     Image();
 }
 
-void Draw(){
-
-    sprintf(image + strlen(image), "\n");
+void Draw() {
+    if (useSprintf) {
+        sprintf(image + strlen(image), "\n");
+    } else {
+        printf("\n");
+    }
 
     Instructions();
 
-    for(int i=0; i<width+1; i++) sprintf(image + strlen(image), "#"); // upper border
-
-    sprintf(image + strlen(image), "\n");
-
-    ////////////////////////////////////////////////////////////////////////////////////
-    for(int i=0; i< height; i++){
-        for(int j=0; j< width; j++){
-
-            if(j==0)  sprintf(image + strlen(image), "#");                               // left border
-            else if(i==headY_2 && j==headX_2) sprintf(image + strlen(image), "\x1b[33mC\x1b[0m");       // snake_1 head
-            else if(i==headY && j==headX) sprintf(image + strlen(image), "\x1b[34mO\x1b[0m");           // snake_2 head
-            else if(i==fruitY && j==fruitX) {
-            // before printing the fruit it checks if the coordinates of the fruit overlap on snakes
-                    bool onTail = false;
-                    for(int m=0; m<nTail; m++){
-                            if(tailX[m] == fruitX && tailY[m]==fruitY) {
-                                onTail=true;
-                                break;
-                            }
-                    }
-
-                    for(int m=0; m<nTail_2; m++){
-                            if(tailX_2[m] == fruitX && tailY_2[m]==fruitY) {
-                                onTail=true;
-                                break;
-                            }
-                    }
-
-                    if (!onTail) {
-
-
-
-                    sprintf(image + strlen(image), "\x1b[31m@\x1b[0m"); // Print '@' with red color
-
-
-                    }
-            }
-            else{                                                           // snake body
-                bool print=false;
-                for(int k=0; k<nTail; k++){
-                    if(tailX[k] == j && tailY[k]==i){
-                         sprintf(image + strlen(image), "\x1b[34mo\x1b[0m");
-                        print=true;
-                        }
-                   }
-                for(int k=0; k<nTail_2; k++){
-                    if(tailX_2[k] == j && tailY_2[k]==i){
-                        sprintf(image + strlen(image), "\x1b[33m+\x1b[0m");
-                        print=true;
-                        }
-                   }
-            if(!print) sprintf(image + strlen(image), " ");
-        }
-            if(j==width-1) sprintf(image + strlen(image), "#");           // right border
+    if (useSprintf) {
+        for (int i = 0; i < width + 1; i++) sprintf(image + strlen(image), "#"); // Upper border
+        sprintf(image + strlen(image), "\n");
+    } else {
+        for (int i = 0; i < width + 1; i++) printf("#"); // Upper border
+        printf("\n");
     }
-    sprintf(image + strlen(image), "\n");
-}
 
-    ////////////////////////////////////////////////////////////////////
+    // Drawing the game area
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            if (useSprintf) {
+                if (j == 0) sprintf(image + strlen(image), "#"); // Left border
+                else if (i == headY_2 && j == headX_2) sprintf(image + strlen(image), "\x1b[33mC\x1b[0m"); // snake_1 head
+                else if (i == headY && j == headX) sprintf(image + strlen(image), "\x1b[34mO\x1b[0m"); // snake_2 head
+                else if (i == fruitY && j == fruitX) {
+                    bool onTail = false;
+                    for (int m = 0; m < nTail; m++) {
+                        if (tailX[m] == fruitX && tailY[m] == fruitY) {
+                            onTail = true;
+                            break;
+                        }
+                    }
+                    for (int m = 0; m < nTail_2; m++) {
+                        if (tailX_2[m] == fruitX && tailY_2[m] == fruitY) {
+                            onTail = true;
+                            break;
+                        }
+                    }
+                    if (!onTail) {
+                        sprintf(image + strlen(image), "\x1b[31m@\x1b[0m"); // Print '@' with red color
+                    }
+                } else {
+                    bool print = false;
+                    for (int k = 0; k < nTail; k++) {
+                        if (tailX[k] == j && tailY[k] == i) {
+                            sprintf(image + strlen(image), "\x1b[34mo\x1b[0m");
+                            print = true;
+                        }
+                    }
+                    for (int k = 0; k < nTail_2; k++) {
+                        if (tailX_2[k] == j && tailY_2[k] == i) {
+                            sprintf(image + strlen(image), "\x1b[33m+\x1b[0m");
+                            print = true;
+                        }
+                    }
+                    if (!print) sprintf(image + strlen(image), " ");
+                }
+                if (j == width - 1) sprintf(image + strlen(image), "#"); // Right border
+            } else {
+                if (j == 0) printf("#"); // left border
+                else if (i == headY_2 && j == headX_2) printf("\x1b[33mC\x1b[0m"); // snake_1 head
+                else if (i == headY && j == headX) printf("\x1b[34mO\x1b[0m"); // snake_2 head
+                else if (i == fruitY && j == fruitX) {
+                    bool onTail = false;
+                    for (int m = 0; m < nTail; m++) {
+                        if (tailX[m] == fruitX && tailY[m] == fruitY) {
+                            onTail = true;
+                            break;
+                        }
+                    }
+                    for (int m = 0; m < nTail_2; m++) {
+                        if (tailX_2[m] == fruitX && tailY_2[m] == fruitY) {
+                            onTail = true;
+                            break;
+                        }
+                    }
+                    if (!onTail) {
+                        printf("\x1b[31m@\x1b[0m"); // Print '@' with red color
+                    }
+                } else {
+                    bool print = false;
+                    for (int k = 0; k < nTail; k++) {
+                        if (tailX[k] == j && tailY[k] == i) {
+                            printf("\x1b[34mo\x1b[0m");
+                            print = true;
+                        }
+                    }
+                    for (int k = 0; k < nTail_2; k++) {
+                        if (tailX_2[k] == j && tailY_2[k] == i) {
+                            printf("\x1b[33m+\x1b[0m");
+                            print = true;
+                        }
+                    }
+                    if (!print) printf(" ");
+                }
+                if (j == width - 1) printf("#"); // Right border
+            }
+        }
+        if (useSprintf) {
+            sprintf(image + strlen(image), "\n");
+        } else {
+            printf("\n");
+        }
+    }
 
-
-    for(int i=0; i<width+1; i++) sprintf(image + strlen(image), "#");// lower border
-
-    sprintf(image + strlen(image), "\n");
-
+    if (useSprintf) {
+        for (int i = 0; i < width + 1; i++) sprintf(image + strlen(image), "#"); // Lower border
+        sprintf(image + strlen(image), "\n");
+    } else {
+        for (int i = 0; i < width + 1; i++) printf("#"); // Lower border
+        printf("\n");
+    }
 
     Image();
-
 }
 
 void Restart() {
     Setup();
     gameRestart = false;
-    score=0;
-    score_2=0;
+    score = 0;
+    score_2 = 0;
 }
 
-
-void Input(){
-    if(_kbhit()){           // checks if a key on the keyboard has been pressed without blocking the program.
-        switch(_getch()){   //reads the next character from the keyboard without displaying it on the screen.
-        case 'a':
-            dir=LEFT;
-            break;
-        case 'd':
-            dir=RIGHT;
-            break;
-        case 'w':
-            dir=UP;
-            break;
-        case 's':
-            dir=DOWN;
-            break;
-          //////////////
-        case 'j':
-            dir_2=LEFT;
-            break;
-        case 'l':
-            dir_2=RIGHT;
-            break;
-        case 'i':
-            dir_2=UP;
-            break;
-        case 'k':
-            dir_2=DOWN;
-            break;
-      ////////////////////////////////////
-        case 'q':
-            gameOver=true;
-            break;
-        case 'r':
-            gameRestart= true;
-            break;
-    ////////////////////////////////////
+void Input() {
+    if (_kbhit()) { // Checks if a key on the keyboard has been pressed without blocking the program.
+        switch (_getch()) { // Reads the next character from the keyboard without displaying it on the screen.
+            case 'a':
+                dir = LEFT;
+                break;
+            case 'd':
+                dir = RIGHT;
+                break;
+            case 'w':
+                dir = UP;
+                break;
+            case 's':
+                dir = DOWN;
+                break;
+            ////////////////////////////////////
+            case 'j':
+                dir_2 = LEFT;
+                break;
+            case 'l':
+                dir_2 = RIGHT;
+                break;
+            case 'i':
+                dir_2 = UP;
+                break;
+            case 'k':
+                dir_2 = DOWN;
+                break;
+            ////////////////////////////////////
+            case 'q':
+                gameOver = true;
+                break;
+            case 'r':
+                gameRestart = true;
+                break;
         }
     }
 }
-//   |----------->x
-//   |
-//   |
-//   |
-//   |
-//   |
-//   >y
-//
-void Logic(){
-    int prevX=tailX[0];
-    int prevY=tailY[0];
+
+void Logic() {
+    int prevX = tailX[0];
+    int prevY = tailY[0];
     int prev2X, prev2Y;
-    tailX[0]=headX;
-    tailY[0]=headY;
+    tailX[0] = headX;
+    tailY[0] = headY;
 
-    for(int i=1;i<nTail; i++){
-        prev2X=tailX[i];
-        prev2Y=tailY[i];
-
-        tailX[i]=prevX;  // we are swapping values
-        tailY[i]=prevY;
-
-        prevX=prev2X;
-        prevY=prev2Y;
+    for (int i = 1; i < nTail; i++) {
+        prev2X = tailX[i];
+        prev2Y = tailY[i];
+        tailX[i] = prevX; // Swapping values
+        tailY[i] = prevY;
+        prevX = prev2X;
+        prevY = prev2Y;
     }
 
-    switch (dir){
-    case LEFT:
-        headX--;
-        break;
-    case RIGHT:
-        headX++;
-        break;
-    case UP:
-        headY--;
-        break;
-    case DOWN:
-        headY++;
-        break;
-    default:
-        break;
-        }
-
-        //////////////////////////////////
-    prevX=tailX_2[0];
-    prevY=tailY_2[0];
-    tailX_2[0]=headX_2;
-    tailY_2[0]=headY_2;
-
-    for(int i=1;i<nTail_2; i++){
-        prev2X=tailX_2[i];
-        prev2Y=tailY_2[i];
-
-        tailX_2[i]=prevX;  // we are swapping values
-        tailY_2[i]=prevY;
-
-        prevX=prev2X;
-        prevY=prev2Y;
+    switch (dir) {
+        case LEFT:
+            headX--;
+            break;
+        case RIGHT:
+            headX++;
+            break;
+        case UP:
+            headY--;
+            break;
+        case DOWN:
+            headY++;
+            break;
+        default:
+            break;
     }
 
-    switch (dir_2){
-    case LEFT:
-        headX_2--;
-        break;
-    case RIGHT:
-        headX_2++;
-        break;
-    case UP:
-        headY_2--;
-        break;
-    case DOWN:
-        headY_2++;
-        break;
-    default:
-        break;
+    prevX = tailX_2[0];
+    prevY = tailY_2[0];
+    tailX_2[0] = headX_2;
+    tailY_2[0] = headY_2;
+
+    for (int i = 1; i < nTail_2; i++) {
+        prev2X = tailX_2[i];
+        prev2Y = tailY_2[i];
+        tailX_2[i] = prevX; // Swapping values
+        tailY_2[i] = prevY;
+        prevX = prev2X;
+        prevY = prev2Y;
     }
 
-    // When it hits the wall it is game over
-    //if(x>=width || x<0 || y>=height || y<0){
-      //  gameOver=true;
-        //}
+    switch (dir_2) {
+        case LEFT:
+            headX_2--;
+            break;
+        case RIGHT:
+            headX_2++;
+            break;
+        case UP:
+            headY_2--;
+            break;
+        case DOWN:
+            headY_2++;
+            break;
+        default:
+            break;
+    }
 
+    // It makes the wall like a portal
+    if (headX >= width) headX = 0;
+    else if (headX < 0) headX = width - 1;
 
-    // it makes the wall like a teleport
+    if (headY >= height) headY = 0;
+    else if (headY < 0) headY = height - 1;
 
-    if(headX>=width) headX=0;
-    else if(headX<0) headX=width-1;
+    if (headX_2 >= width) headX_2 = 0;
+    else if (headX_2 < 0) headX_2 = width - 1;
 
-    if(headY>=height) headY=0;
-    else if(headY<0) headY=height-1;
+    if (headY_2 >= height) headY_2 = 0;
+    else if (headY_2 < 0) headY_2 = height - 1;
 
-    if(headX_2>=width) headX_2=0;
-    else if(headX_2<0) headX_2=width-1;
-
-    if(headY_2>=height) headY_2=0;
-    else if(headY_2<0) headY_2=height-1;
-
-//////////////////////
-    for(int i=0;i<nTail;i++){ // when we hit our tail or the others tail
-
-        if(tailX[i]==headX && tailY[i]==headY) gameOver=true;
+    for (int i = 0; i < nTail; i++) { // When we hit our tail or the other's tail
+        if (tailX[i] == headX && tailY[i] == headY) gameOver = true;
         if (headX_2 == tailX[i] && headY_2 == tailY[i]) gameOver = true;
     }
 
-    for(int i=0;i<nTail_2;i++){ // when we hit our tail or the others tail
-
-        if(tailX_2[i]==headX_2 && tailY_2[i]==headY_2) gameOver=true;
-        else if(headX == tailX_2[i] && headY == tailY_2[i]) gameOver = true;
+    for (int i = 0; i < nTail_2; i++) { // When we hit our tail or the other's tail
+        if (tailX_2[i] == headX_2 && tailY_2[i] == headY_2) gameOver = true;
+        else if (headX == tailX_2[i] && headY == tailY_2[i]) gameOver = true;
     }
 
-    if(headX==headX_2 && headY==headY_2){ // hit the head game over
-        gameOver=true;
+    if (headX == headX_2 && headY == headY_2) { // Hit the head game over
+        gameOver = true;
     }
 
-    ////////////////////////////////////
-
-    if(headX==fruitX && headY==fruitY){ // Fruit generator
-        score+=10;                      // Score increases
-        fruitX=rand()%width;
-        fruitY=rand()%height;
+    if (headX == fruitX && headY == fruitY) { // Fruit generator
+        score += 10; // Score increases
+        fruitX = rand() % width;
+        fruitY = rand() % height;
         nTail++;
     }
-    if(headX_2==fruitX && headY_2==fruitY){ // Fruit generator
-        score_2+=10;                        // Score increases
-        fruitX=rand()%width;
-        fruitY=rand()%height;
+    if (headX_2 == fruitX && headY_2 == fruitY) { // Fruit generator
+        score_2 += 10; // Score increases
+        fruitX = rand() % width;
+        fruitY = rand() % height;
         nTail_2++;
     }
 }
 
+void chooseMode() {
+    char choice;
+    printf("Choose mode:\n");
+    printf("1. Use sprintf\n");
+    printf("2. Use printf\n");
+    printf("Enter your choice: ");
+    choice = _getch();
+    if (choice == '1') {
+        useSprintf = 1;
+    } else if (choice == '2') {
+        useSprintf = 0;
+    } else {
+        printf("\nInvalid choice. Defaulting to sprintf.\n");
+        useSprintf = 1;
+    }
+}
 
-
-int main()
-{
-   // SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),  // Changes the color of the background
-     //                       FOREGROUND_RED |
-       //                     FOREGROUND_GREEN |
-        //                    BACKGROUND_RED |
-          //                  BACKGROUND_GREEN |
-            //                BACKGROUND_INTENSITY
-              //              );
-
-
-
+int main() {
+    resizeConsole();
+    chooseMode();
     srand(time(NULL));
     Setup();
 
-    while(!gameOver){
-
-        clock_t startTime = clock(); // Start measuring time
+    while (!gameOver) {
+        clock_t iterationStartTime = clock(); // Start measuring time
 
         system("cls"); // Clear the screen before the next iteration
 
         Draw();
         Input();
         Logic();
-        Sleep(100); // slows our game because it runs too fast
 
-        if (gameOver){
+        clock_t iterationEndTime = clock(); // Stop measuring time
+        double iterationTime = (double)(iterationEndTime - iterationStartTime) / CLOCKS_PER_SEC;
 
+        int sleepTime = (int)((MAX_SLEEP_TIME - (iterationTime * 1000)) + 0.5); // Convert seconds to milliseconds
+        if (sleepTime > 0)
+            Sleep(sleepTime);
+        else
+            Sleep(1); // Minimum sleep time
 
-            sprintf(image + strlen(image), "\nGame Over!\n");
-            sprintf(image + strlen(image), "Press R to restart or Q to quit.\n");
+        // Display the sleep time
+
+        if (useSprintf) {
+            sprintf(image + strlen(image), "Sleep time: %d ms\n", sleepTime);
+            Image();
+        } else {
+            printf("Sleep time: %d ms\n", sleepTime);
+        }
+
+        if (gameOver) {
+            if (useSprintf) {
+                sprintf(image + strlen(image), "\nGame Over!\n");
+                sprintf(image + strlen(image), "Press R to restart or Q to quit.\n");
+            } else {
+                printf("\nGame Over!\n");
+                printf("Press R to restart or Q to quit.\n");
+            }
 
             Image();
 
-            char key=_getch();
-            if(key=='r') Restart();
-            else if (key=='q') break;
-
+            char key = _getch();
+            if (key == 'r') Restart();
+            else if (key == 'q') break;
         }
-        clock_t endTime = clock(); // Stop measuring time
-        double iterationTime = (double)(endTime - startTime) / CLOCKS_PER_SEC;
-        printf("\nTime for one iteration: %f seconds\n", iterationTime);
-
-
     }
-
 
     return 0;
 }
