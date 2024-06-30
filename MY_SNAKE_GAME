@@ -26,6 +26,8 @@ enum eDirection dir, dir_2;
 char image[2600];
 int useSprintf = 1; // 1 for sprintf, 0 for printf
 
+//The code for resizeConsole() was posted by someone as a solution on Stack Overflow
+
 void resizeConsole() { // Makes the window appear bigger
     // Retrieve the console window handle
     HWND consoleWindow = GetConsoleWindow();
@@ -48,7 +50,6 @@ void resizeConsole() { // Makes the window appear bigger
     // Adjust the console window size
     SetWindowPos(consoleWindow, HWND_TOP, 0, 0, screenWidth, screenHeight, SWP_NOOWNERZORDER);
 }
-
 
 
 void Image() {
@@ -386,7 +387,7 @@ void chooseMode() {
     } else if (choice == '2') {
         useSprintf = 0;
     } else {
-        printf("\nInvalid choice. Defaulting to sprintf.\n");
+        printf("\nIncorrect number. The mode chosen for this answer will arbitrary be sprintf.\n");
         useSprintf = 1;
     }
 }
