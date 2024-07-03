@@ -1,12 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>     // rand(), system("cls")
 #include <stdbool.h>
-#include <Windows.h>    // sleep()
-#include <time.h>       // Measuring the time for each iteration
+#include <Windows.h>    // sleep(), GetTickCount()
 #include <conio.h>      // Used for the movement of the snakes(reading input keys from the users)
 #include <string.h>     // Used for strlen for sprintf
-
-#define MAX_SLEEP_TIME 120 // Maximum sleep time in milliseconds
 
 bool gameOver;
 bool gameRestart;
@@ -23,32 +20,23 @@ int tailX_2[100], tailY_2[100];
 enum eDirection { STOP = 0, LEFT, RIGHT, UP, DOWN };
 enum eDirection dir, dir_2;
 
-char image[2600];
+char image[2610];
 int useSprintf = 1; // 1 for sprintf, 0 for printf
 
-//The code for resizeConsole() was posted by someone as a solution on Stack Overflow
+int fpsTime;
 
-void resizeConsole() { // Makes the window appear bigger
-    // Retrieve the console window handle
-    HWND consoleWindow = GetConsoleWindow();
-
-    // Adjust the window style
-    LONG style = GetWindowLong(consoleWindow, GWL_STYLE);
-    style &= ~(WS_OVERLAPPEDWINDOW); // Remove window border and title bar
-    SetWindowLong(consoleWindow, GWL_STYLE, style);
-    SetWindowPos(consoleWindow, NULL, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER);
-
-    // Get full screen size
-    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
-    // Set the screen buffer size to be large enough
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    COORD coord = { screenWidth / 8, screenHeight / 16 }; // Adjust character size if different
-    SetConsoleScreenBufferSize(hConsole, coord);
-
-    // Adjust the console window size
-    SetWindowPos(consoleWindow, HWND_TOP, 0, 0, screenWidth, screenHeight, SWP_NOOWNERZORDER);
+void chooseFPS() {
+    int fps = 0;
+    while (fps <= 0) {
+        printf("\nEnter the desired FPS: ");
+        if (scanf("%d", &fps) != 1 || fps <= 0) {
+            // Clear the invalid input
+            while (getchar() != '\n');
+            printf("Invalid input. Try again.\n");
+            fps = 0; // Reset fps to continue the loop
+        }
+    }
+    fpsTime = 1000 / fps; // The duration of each frame in milliseconds
 }
 
 
@@ -131,7 +119,7 @@ void Draw() {
             if (useSprintf) {
                 if (j == 0) sprintf(image + strlen(image), "#"); // Left border
                 else if (i == headY_2 && j == headX_2) sprintf(image + strlen(image), "\x1b[33mC\x1b[0m"); // snake_1 head
-                else if (i == headY && j == headX) sprintf(image + strlen(image), "\x1b[34mO\x1b[0m"); // snake_2 head
+                else if (i == headY && j == headX) sprintf(image + strlen(image), "\x1b[34mO\x1b[0m");     // snake_2 head
                 else if (i == fruitY && j == fruitX) {
                     bool onTail = false;
                     for (int m = 0; m < nTail; m++) {
@@ -167,9 +155,9 @@ void Draw() {
                 }
                 if (j == width - 1) sprintf(image + strlen(image), "#"); // Right border
             } else {
-                if (j == 0) printf("#"); // left border
+                if (j == 0) printf("#"); // Left border
                 else if (i == headY_2 && j == headX_2) printf("\x1b[33mC\x1b[0m"); // snake_1 head
-                else if (i == headY && j == headX) printf("\x1b[34mO\x1b[0m"); // snake_2 head
+                else if (i == headY && j == headX) printf("\x1b[34mO\x1b[0m");     // snake_2 head
                 else if (i == fruitY && j == fruitX) {
                     bool onTail = false;
                     for (int m = 0; m < nTail; m++) {
@@ -232,8 +220,8 @@ void Restart() {
 }
 
 void Input() {
-    if (_kbhit()) { // Checks if a key on the keyboard has been pressed without blocking the program.
-        switch (_getch()) { // Reads the next character from the keyboard without displaying it on the screen.
+    if (_kbhit()) {           // Checks if a key on the keyboard has been pressed without blocking the program.
+        switch (_getch()) {   // Reads the next character from the keyboard without displaying it on the screen.
             case 'a':
                 dir = LEFT;
                 break;
@@ -376,30 +364,30 @@ void Logic() {
 }
 
 void chooseMode() {
-    char choice;
+    int choice;
     printf("Choose mode:\n");
     printf("1. Use sprintf\n");
     printf("2. Use printf\n");
     printf("Enter your choice: ");
-    choice = _getch();
-    if (choice == '1') {
-        useSprintf = 1;
-    } else if (choice == '2') {
-        useSprintf = 0;
+    if (scanf("%d", &choice) != 1 || (choice != 1 && choice != 2)) {
+        printf("\nIncorrect input. The mode chosen for this answer will arbitrarily be sprintf.\n");
+        useSprintf = 1;  // Default to sprintf if input is invalid
+        // Clear the invalid input
+        while (getchar() != '\n');
     } else {
-        printf("\nIncorrect number. The mode chosen for this answer will arbitrary be sprintf.\n");
-        useSprintf = 1;
+        useSprintf = (choice == 1) ? 1 : 0;
     }
 }
 
+
 int main() {
-    resizeConsole();
     chooseMode();
+    chooseFPS(); // Call this function to get the FPS from the user
     srand(time(NULL));
     Setup();
 
     while (!gameOver) {
-        clock_t iterationStartTime = clock(); // Start measuring time
+        DWORD startTime = GetTickCount(); // Start measuring time
 
         system("cls"); // Clear the screen before the next iteration
 
@@ -407,22 +395,59 @@ int main() {
         Input();
         Logic();
 
-        clock_t iterationEndTime = clock(); // Stop measuring time
-        double iterationTime = (double)(iterationEndTime - iterationStartTime) / CLOCKS_PER_SEC;
+        DWORD endTime = GetTickCount(); // Start measuring time
 
-        int sleepTime = (int)((MAX_SLEEP_TIME - (iterationTime * 1000)) + 0.5); // Convert seconds to milliseconds
-        if (sleepTime > 0)
+        /* The idea of the two measuring times is to find how much time does the
+        Draw(), Input() and Logic() take to execute within one iteration of the game loop. */
+        DWORD iterationTime = endTime - startTime;
+
+        int sleepTime = fpsTime - iterationTime;
+
+
+        /*  If the user sets a high FPS like for example 100, than one iteration should be complete
+        in 1000/100 = 10 ms. But the game logic takes longer than this and results in a negative sleep time.
+        This means that the Draw() Input() and Logic() are too slow to maintain the desired frame rate.
+        Furthermore a problem can also come from a value of FPS that is too low.  */
+
+        /*  high FPS -> low fpsTime  -> low sleepTime
+
+            low FPS  -> high fpsTime -> high sleepTime  */
+
+        if (sleepTime > 200) {
+            if (useSprintf) {
+                sprintf(image + strlen(image), "The chosen FPS is too low.\n");
+                Image();
+            } else { printf("The chosen FPS is too low.\n"); }
             Sleep(sleepTime);
-        else
-            Sleep(1); // Minimum sleep time
 
-        // Display the sleep time
+        } else if (sleepTime > 0 && sleepTime < 15) {
+            if (useSprintf) {
+                sprintf(image + strlen(image), "The chosen FPS is too high.\n");
+                Image();
+            } else { printf("The chosen FPS is too high.\n"); }
+            Sleep(sleepTime);
+
+        } else if (sleepTime > 0) {
+            Sleep(sleepTime); // Normal sleep time when the FSP is the appropriate number
+
+        } else if (sleepTime < 0) {
+           if (useSprintf) {
+                sprintf(image + strlen(image), "The chosen FPS is too high.\n");
+                Image();
+           } else { printf("The chosen FPS is too high.\n"); }
+            Sleep(1);
+
+        } else {
+            Sleep(1);
+        }
 
         if (useSprintf) {
-            sprintf(image + strlen(image), "Sleep time: %d ms\n", sleepTime);
+            sprintf(image + strlen(image), "\nIteration time: %d ms", iterationTime);
+            sprintf(image + strlen(image), "\nSleep time: %d ms\n", sleepTime);
             Image();
         } else {
-            printf("Sleep time: %d ms\n", sleepTime);
+            printf("\nIteration time: %d ms", iterationTime);
+            printf("\nSleep time: %d ms\n", sleepTime);
         }
 
         if (gameOver) {
