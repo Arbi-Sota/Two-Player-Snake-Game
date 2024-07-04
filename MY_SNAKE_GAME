@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>     // rand(), system("cls")
 #include <stdbool.h>
-#include <Windows.h>    // sleep(), GetTickCount()
+#include <Windows.h>    // sleep(), QueryPerformanceCounter(), QueryPerformanceFrequency()
 #include <conio.h>      // Used for the movement of the snakes(reading input keys from the users)
 #include <string.h>     // Used for strlen for sprintf
+#include <time.h>
 
 bool gameOver;
 bool gameRestart;
@@ -382,12 +383,19 @@ void chooseMode() {
 
 int main() {
     chooseMode();
-    chooseFPS(); // Call this function to get the FPS from the user
+    chooseFPS();
     srand(time(NULL));
     Setup();
 
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER startTime, endTime;
+
+    // Gets the frequency (counts per second) of the high-resolution performance counter.
+    QueryPerformanceFrequency(&frequency);
+
+
     while (!gameOver) {
-        DWORD startTime = GetTickCount(); // Start measuring time
+        QueryPerformanceCounter(&startTime); // Start measuring time
 
         system("cls"); // Clear the screen before the next iteration
 
@@ -395,13 +403,13 @@ int main() {
         Input();
         Logic();
 
-        DWORD endTime = GetTickCount(); // Start measuring time
+        QueryPerformanceCounter(&endTime); // End measuring time
 
         /* The idea of the two measuring times is to find how much time does the
         Draw(), Input() and Logic() take to execute within one iteration of the game loop. */
-        DWORD iterationTime = endTime - startTime;
+        LONGLONG iterationTime = (endTime.QuadPart - startTime.QuadPart) * 1000 / frequency.QuadPart;
 
-        int sleepTime = fpsTime - iterationTime;
+        int sleepTime = fpsTime - (int)iterationTime;
 
 
         /*  If the user sets a high FPS like for example 100, than one iteration should be complete
@@ -414,6 +422,8 @@ int main() {
             low FPS  -> high fpsTime -> high sleepTime  */
 
         if (sleepTime > 200) {
+              /* The number 200 here is a number I have chosen myself, by trying different numbers for FPS. Ergo this number can be 300, another
+            number or it can be entirely omitted. In my opinion the lowest FPS should be between 8-10 for sprintf. */
             if (useSprintf) {
                 sprintf(image + strlen(image), "The chosen FPS is too low.\n");
                 Image();
@@ -421,6 +431,9 @@ int main() {
             Sleep(sleepTime);
 
         } else if (sleepTime > 0 && sleepTime < 15) {
+            /* The number 15 here is a number I have chosen myself, by trying different numbers for FPS. Ergo this number can also be another number. In my
+            opinion the highest FPS should be 30 for sprintf. */
+
             if (useSprintf) {
                 sprintf(image + strlen(image), "The chosen FPS is too high.\n");
                 Image();
